@@ -103,6 +103,15 @@ target_link_libraries(ratslam_pc
   ${OPENGL_LIBRARIES}
   ${OpenCV_LIBRARIES})
 
+add_executable(ratslam_feixiao src/main.cpp)
+target_link_libraries(ratslam_feixiao
+  ${catkin_LIBRARIES}
+  ratslam
+  ${IRRLICHT_LIBRARIES}
+#  ${OPENGL_LIBRARIES}
+#  ${OpenCV_LIBRARIES}
+)
+  
 add_executable(ratslam_em src/main_em.cpp)
 target_link_libraries(ratslam_em
   ${catkin_LIBRARIES}
