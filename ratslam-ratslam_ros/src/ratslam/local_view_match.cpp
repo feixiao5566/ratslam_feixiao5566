@@ -1,0 +1,347 @@
+/*
+ * openRatSLAM
+ *
+ * utils - General purpose utility helper functions mainly for angles and readings settings
+ *
+ * Copyright (C) 2012
+ * David Ball (david.ball@qut.edu.au) (1), Scott Heath (scott.heath@uqconnect.edu.au) (2)
+ *
+ * modify by feixiao (feixiao5566@gmail.com) 5 Aug 2015 V1.0
+ * Tarsbot Xi`An
+ * RatSLAM algorithm by:
+ * Michael Milford (1) and Gordon Wyeth (1) ([michael.milford, gordon.wyeth]@qut.edu.au)
+ *
+ * 1. Queensland University of Technology, Australia
+ * 2. The University of Queensland, Australia
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "local_view_match.h"
+#include "../utils/utils.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <iostream>
+#include <iomanip>
+using namespace std;
+#include <boost/foreach.hpp>
+#include <algorithm>
+
+#include <stdio.h>
+#include <fcntl.h>
+
+int i_id = 0;
+int myitoa(char *buf);
+
+namespace ratslam
+{
+LocalViewMatch::LocalViewMatch(ptree settings)
+{
+  get_setting_from_ptree(VT_MIN_PATCH_NORMALISATION_STD, settings, "vt_min_patch_normalisation_std", (double)0);
+  get_setting_from_ptree(VT_PATCH_NORMALISATION, settings, "vt_patch_normalise", 0);
+  get_setting_from_ptree(VT_NORMALISATION, settings, "vt_normalisation", (double) 0);
+  get_setting_from_ptree(VT_SHIFT_MATCH, settings, "vt_shift_match", 25);
+  get_setting_from_ptree(VT_STEP_MATCH, settings, "vt_step_match", 5);
+  get_setting_from_ptree(VT_PANORAMIC, settings, "vt_panoramic", 0);
+ 
+  get_setting_from_ptree(VT_MATCH_THRESHOLD, settings, "vt_match_threshold", 0.00);
+  get_setting_from_ptree(TEMPLATE_X_SIZE, settings, "template_x_size", 1);
+  get_setting_from_ptree(TEMPLATE_Y_SIZE, settings, "template_y_size", 1);
+  get_setting_from_ptree(IMAGE_VT_X_RANGE_MIN, settings, "image_crop_x_min", 0);
+  get_setting_from_ptree(IMAGE_VT_X_RANGE_MAX, settings, "image_crop_x_max", -1);
+  get_setting_from_ptree(IMAGE_VT_Y_RANGE_MIN, settings, "image_crop_y_min", 0);
+  get_setting_from_ptree(IMAGE_VT_Y_RANGE_MAX, settings, "image_crop_y_max", -1);
+
+  TEMPLATE_SIZE = 24;//TEMPLATE_X_SIZE * TEMPLATE_Y_SIZE;
+
+  templates.reserve(10000);
+
+  current_view.resize(TEMPLATE_SIZE);
+  
+  current_vt = 0;
+  prev_vt = 0;
+}
+
+LocalViewMatch::~LocalViewMatch()
+{
+
+}
+
+void LocalViewMatch::on_image(const unsigned char *view_rgb)
+{
+  if (view_rgb == NULL)
+    return;
+  this->view_rgb = view_rgb;
+//  cout<<view_rgb<<endl;
+  convert_view_to_view_template(true);
+  prev_vt = get_current_vt();
+  unsigned int vt_match_id;
+  compare(vt_error, vt_match_id);
+  if (vt_error <= VT_MATCH_THRESHOLD)
+  {
+    set_current_vt((int)vt_match_id);
+//    cout << "VTM[" << setw(4) << get_current_vt()+1 << "] " << endl;
+//    cout.flush();
+  }
+  else
+  {
+    vt_relative_rad = 0;
+    set_current_vt(create_template());
+//    cout << "VTN[" << setw(4) << get_current_vt()+1 << "] " << endl;
+//    cout.flush();
+  }
+}
+void LocalViewMatch::convert_view_to_view_template(bool grayscale)
+{
+  int counter = 0;
+  current_view.clear();
+  vector<double>(current_view).swap(current_view);
+  for (int pos = 0; pos < 24; pos++)//24
+  {
+    current_view.push_back(view_rgb[pos]);
+  }
+}
+
+// create and add a visual template to the collection
+int LocalViewMatch::create_template()
+{
+  int n = 0, c_id = 0;
+  char str_epc[25] ;
+  char tagname[6] = "0";
+  float x = 0.0;
+  float y = 0.0;
+//  int tagname = 0;
+
+  memcpy(str_epc, view_rgb, 25);//it`s wrong
+  templates.resize(templates.size() + 1);
+  VisualTemplate * new_template = &(*(templates.end() - 1));
+//  n = access("./src/uhf_rfid_api/config/template_config.ini", F_OK);//相对路径无法访问
+//  n = access(argv[3], W_OK);
+//  if(-1 == n)
+    cout<<"creat_file: "<<n<<endl;
+    boost::property_tree::ptree m_pt, tag_setting;
+    
+
+//  c_id = templates.size() - 1;
+  new_template->id = templates.size() - 1;
+  double * data_ptr = &current_view[0];
+  new_template->data.reserve(TEMPLATE_SIZE);
+  for (int i = 0; i < TEMPLATE_SIZE; i++)
+  {
+    new_template->data.push_back(*(view_rgb++));
+  }
+  
+//  tagname += c_id;
+  i_id = templates.size() - 1;
+
+  //tagname = myitoa(new_template->id, tagname);
+ myitoa(tagname);
+
+  
+  read_ini(str, m_pt);
+//  read_ini("/home/feixiao/catkin_ws/src/uhf_rfid_api/config/template_config.ini", m_pt);
+//  tagname = templates.size() - 1;
+//------------------>然后写配置文件
+tag_setting.clear(); //不清除的话新的标签默认会继承上一个标签中的内容
+//tag_setting.put<int>(tagename,g_id);
+tag_setting.put<char*>("epc",str_epc);
+tag_setting.put<int>("pos_x",x);
+tag_setting.put<int>("pos_y",y);
+//tag_setting.put<int>(tagename,g_id);
+
+m_pt.put_child(tagname,tag_setting); //写入新的标签，如果标签名一样，会修改你前一个的内容，如果不一样就会在下面新加一个 
+write_ini(str, m_pt);
+  return templates.size() - 1;
+}
+
+// compare a visual template to all the stored templates, allowing for 
+// slen pixel shifts in each direction
+// returns the matching template and the MSE
+void LocalViewMatch::compare(double &vt_err, unsigned int &vt_match_id)
+{
+  if (templates.size() == 0)
+  {
+    vt_err = DBL_MAX;
+    vt_error = vt_err;
+    return;
+  }
+  vector<double>::iterator iter = current_view.begin();
+  double *data = &current_view[0];
+  size_t i=0;
+  double mindiff, cdiff;
+  mindiff = DBL_MAX;
+  vt_err = DBL_MAX;
+  int min_template = 0;
+  double *template_ptr;
+  double *column_ptr;
+  double *template_row_ptr;
+  double *column_row_ptr;
+  double *template_start_ptr;
+  double *column_start_ptr;
+  int row_size;
+  int sub_row_size;
+  double *column_end_ptr;
+  VisualTemplate vt;
+  int min_offset;
+
+  int offset;
+  double epsilon = 0.005;
+	BOOST_FOREACH(vt, templates)
+	{
+	  int ii = 0;
+    if(vt.data[ii] == data[ii])
+    {
+      for(int i = 0; i<24; i++)
+      {
+        if(vt.data[ii+i] == data[ii+i])
+        {
+          if(23 == i)
+          {
+            vt_error = 0;
+            vt_match_id = vt.id;
+            return;
+          }
+        }
+        else
+        {
+          break;
+        }
+      }
+    }
+    vt_err = 1;
+    vt_match_id = 0;
+    vt_error = vt_err;
+	}
+}
+//stop 0 ------> stop 1------>continue
+void LocalViewMatch::find_my(const unsigned char *my_tag)
+{
+  if (templates.size() == 0)
+  {
+    stop = 1;
+    return;
+  }
+
+  VisualTemplate vt;
+  std::vector<double> find_tag;
+  find_tag.clear();
+  vector<double>(find_tag).swap(find_tag);
+  for (int pos = 0; pos < 24; pos++)//24
+  {
+    find_tag.push_back(my_tag[pos]);
+  }
+  size_t i=0;
+  int counter = 0;
+  double *tagdata = &find_tag[0];
+  double *data = &current_view[0];
+  
+//  BOOST_FOREACH(vt, templates)
+	{
+	  int ii = 0;
+    if(data[ii] == tagdata[ii])
+    {
+      for(int i = 0; i<24; i++)
+      {
+        if(data[ii+i] == tagdata[ii+i])
+        {
+          if(23 == i)
+          {
+            stop = 1;
+//            cout<<"find:"<<stop<<endl;
+ //           cout.flush();
+//            cout<<"i return "<<endl;
+            return;
+          }
+        }
+        else
+        {
+          stop = 0;
+//          cout<<"not find:"<<stop<<endl;
+//          cout.flush();
+          break;
+        }
+      }
+    }
+  }
+  stop = 0;
+}
+}
+
+/*turn the Decimal id to a char[],don`t use itoa*/
+int myitoa(char* buff)
+{
+	int i = 0;
+  int n = 0;
+  int i_g = 0;
+  int i_s = 0;
+  int i_b = 0;
+  int i_q = 0;
+  int i_w = 0;
+	unsigned int checktmp = 0;
+	unsigned char epcbuff[13] = {'\0'};
+	unsigned char chepc = '\0';
+//  把i_id变成字符串
+
+	i_g = i_id%10;
+  n = i_id/10;
+  if(n>9)
+  {
+    i_s = n;
+    n = n/10;
+    if(n>9)
+    {
+      i_b = n;
+      n = n/10;
+      if(n>9)
+      {
+        i_q = n;
+        n = n/10;
+        if(n>9)
+        {
+          i_w = n;
+          n = n/10;
+        }
+        else
+        {
+          i_w = n;
+        }
+      }
+      else
+      {
+        i_q = n;
+      }
+    }
+    else
+    {
+      i_b = n;
+    }
+  }
+  else
+  {
+    i_s = n;
+  }
+  buff[0] = i_w+'0';
+  buff[1] = i_q+'0';
+  buff[2] = i_b+'0';
+  buff[3] = i_s+'0';
+  buff[4] = i_g+'0';
+  buff[5] = '\0';
+
+  return 0;
+}
+
+
+
