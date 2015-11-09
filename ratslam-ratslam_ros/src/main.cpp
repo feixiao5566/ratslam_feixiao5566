@@ -229,6 +229,21 @@ int main(int argc, char **argv)
 	arr.push_back(3);
 	arr.push_back(4);
 	arr.push_back(5);
+	arr.push_back(6);
+	arr.push_back(7);
+	arr.push_back(8);
+	arr.push_back(9);
+	arr.push_back(10);
+	arr.push_back(11);
+	arr.push_back(12);
+	arr.push_back(13);
+	arr.push_back(14);
+	arr.push_back(15);
+	arr.push_back(16);
+	arr.push_back(17);
+	arr.push_back(18);
+	arr.push_back(19);
+	arr.push_back(20);
 	graf<int> g(arr);
 	cout<< "初始化成功\n";
 	while(ros::ok())
@@ -297,24 +312,24 @@ int main(int argc, char **argv)
 	  }
 	 // cout <<cur_id_<<pre_id_<<i<<endl;
 	}
-	/*
+/*	
 	g.addLink(0,1,5);
 	g.addLink(0,3,10);
 	g.addLink(1,2,5);
 	g.addLink(1,4,1);
 	g.addLink(2,4,1);
 	g.addLink(3,2,-7);
-	g.addLink(3,4,-4);
+	g.addLink(3,4,-4);*/
 	
-	cout<<"shortest way: "<<g.shortestWay(0,4).second<<endl;
-	*/
+	cout<<"shortest way: "<<g.shortestWay(1,17).second<<endl;
+	
 //	cout<<"want to find head and tail is: "<<endl;
 //	cin>>head;
 //	cin>>tail;
-	cout<<"dijkstra: "<<g.Dijkstra(1, 4).second<<endl;
+	cout<<"dijkstra: "<<g.Dijkstra(1, 17).second<<endl;
 	
-//	g.printGraf();
-	cout<<"way: "<<g.isDirectWay(1, 4).second<<endl;
+	g.printGraf();
+	cout<<"way: "<<g.isDirectWay(1, 17).second<<endl;
 	  ros::spinOnce();
 	 loop_rate.sleep();
   }

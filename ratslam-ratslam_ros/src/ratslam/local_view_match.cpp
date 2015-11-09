@@ -131,7 +131,7 @@ int LocalViewMatch::create_template()
 //  n = access("./src/uhf_rfid_api/config/template_config.ini", F_OK);//相对路径无法访问
 //  n = access(argv[3], W_OK);
 //  if(-1 == n)
-    cout<<"creat_file: "<<n<<endl;
+//    cout<<"creat_file: "<<n<<endl;
     boost::property_tree::ptree m_pt, tag_setting;
     
 
