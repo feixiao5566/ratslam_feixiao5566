@@ -151,7 +151,7 @@ public:
   //最短路径	
 	pair<bool,int> shortestWay(utint from,utint to)
 	{//Bellman-Ford alhorithm
-		 vector< pair<bool,int> > dist(data.size(), pair<bool,int>(0,0));// array of lenght (bool=0 => infinite)
+		 vector< pair<bool,int> > dist(data.size(), pair<bool,int>(0,0));// array of lenght (bool=0 => infinite)   邻接矩阵
 		 vector<int> prev (data.size(),-1);//array of previous vertexes in the way
 		 dist[from]=pair<bool,int>(1,0);
 		 for(utint i=0;i<data.size()-1;i++)
